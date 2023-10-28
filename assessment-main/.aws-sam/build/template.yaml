@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Announcement
+
+  Sample SAM Template for Announcement
+
+  '
+Globals:
+  Function:
+    Timeout: 3
+Parameters:
+  Stage:
+    Type: String
+  SourceBucketName:
+    Type: String
+Resources:
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: SourceBucketName
+  uploadfile:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: uploadfile
+      Handler: app.app1
+      Runtime: python3.8
+      Policies:
+        S3WritePolicy:
+          BucketName:
+            Ref: SourceBucketName
+          Environment:
+            BUCKETNAME:
+              Ref: SourceBucketName
+      Events:
+        PostUpload:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: MyApi
+            Path: /uploadfile
+            Method: post
+        ListAnnouncements:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: MyApi
+            Path: /getdata
+            Method: get
+    Metadata:
+      SamResourceId: uploadfile
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName:
+        Ref: Stage
+      CacheClusterEnabled: true
+      CacheClusterSize: '0.5'
+      MethodSettings:
+      - CachingEnabled: false
+        CacheTtlInSeconds: 0
+        HttpMethod: '*'
+        ResourcePath: /*
+      Auth:
+        DefaultAuthorizer: MyLambdaRequestAuthorizer
+        Authorizers:
+          MyLambdaRequestAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn:
+              Fn::GetAtt:
+              - MyAuthFunction
+              - Arn
+            Identity:
+              QueryStrings:
+              - auth
+              Headers:
+              - approval
+  MyAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: MyAuthFunction
+      Handler: handler.authorizer
+      Runtime: nodejs18.x
+    Metadata:
+      SamResourceId: MyAuthFunction
+Outputs:
+  HelloWorldApi:
+    Description: API Gateway endpoint URL for Prod stage for Hello World function
+    Value:
+      Fn::Sub: https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/hello/
+  uploadfile:
+    Description: Hello World Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - uploadfile
+      - Arn
+  HelloWorldFunction1IamRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value:
+      Fn::GetAtt:
+      - uploadfile
+      - Arn
